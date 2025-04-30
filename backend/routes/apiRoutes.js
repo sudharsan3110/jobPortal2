@@ -981,7 +981,7 @@ router.get("/applicants", jwtAuth, (req, res) => {
   }
 });
 
-// to add or update a rating [todo: test]
+
 router.put("/rating", jwtAuth, (req, res) => {
   const user = req.user;
   const data = req.body;
@@ -1344,37 +1344,31 @@ router.get("/rating", jwtAuth, (req, res) => {
   });
 });
 
-// Application.findOne({
-//   _id: id,
-//   userId: user._id,
-// })
-//   .then((application) => {
-//     application.status = status;
-//     application
-//       .save()
-//       .then(() => {
-//         res.json({
-//           message: `Application ${status} successfully`,
-//         });
-//       })
-//       .catch((err) => {
-//         res.status(400).json(err);
-//       });
-//   })
-//   .catch((err) => {
-//     res.status(400).json(err);
-//   });
+async function notifyApplicant(application, status) {
+  try {
+    // Get applicant info - this should come BEFORE trying to access applicant.email
+    const applicant = await JobApplicant.findOne({ userId: application.userId });
+    console.log("Applicant found:", applicant);
+    if (!applicant || !applicant.email) {
+      console.log("Applicant not found or email not available");
+      return;
+    }
+    
+    console.log("Sending email to applicant:", applicant.email);
+    const job = await Job.findById(application.jobId);
+    const jobTitle = job ? job.title : 'the job';
+    const company = job && job.company ? job.company : 'the company';
 
-// router.get("/jobs", (req, res, next) => {
-//   passport.authenticate("jwt", { session: false }, function (err, user, info) {
-//     if (err) {
-//       return next(err);
-//     }
-//     if (!user) {
-//       res.status(401).json(info);
-//       return;
-//     }
-//   })(req, res, next);
-// });
+    await sendApplicationStatusEmail(
+      applicant.email,
+      jobTitle,
+      company,
+      status
+    );
+    console.log('Email sent to applicant:', applicant.email);
+  } catch (err) {
+    console.error('Failed to send email:', err);
+  }
+}
 
 module.exports = router;
